@@ -146,7 +146,7 @@ export class GenerateModal extends Modal {
 	): Promise<void> {
 		try {
 			const videoScanner = new VideoScanner(this.plugin.settings.videoFolderPath);
-			const noteManager = new NoteManager(this.app, this.plugin.settings.obsidianNoteFolder);
+			const noteManager = new NoteManager(this.app, this.plugin.settings.obsidianNoteFolder, this.plugin.settings.tagPrefix);
 
 			this.updateStatus('Scanning video folder...');
 			addLog(`Scanning: ${this.plugin.settings.videoFolderPath}`);

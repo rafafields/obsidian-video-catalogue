@@ -1,90 +1,99 @@
-# Obsidian Sample Plugin
+# Obsidian Video Catalogue
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+**Obsidian Video Catalogue (OVC)** is a desktop plugin for [Obsidian](https://obsidian.md) that automatically scans a folder of video files, extracts frames using FFmpeg, and sends them to a multimodal AI model via [OpenRouter](https://openrouter.ai) to generate categorized, tagged notes directly in your vault.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## Features
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+- Scans any folder on your system for video files (`.mp4`, `.mkv`, `.mov`, `.avi`, `.webm` and more)
+- Extracts frames from each video at configurable intervals using a bundled FFmpeg binary (auto-downloaded on first use)
+- Sends frames to a multimodal AI model for analysis
+- Generates an Obsidian note per video with:
+  - Title, description and category
+  - Tags with a customizable prefix (default: `OVC-`)
+  - Timeline of key events detected in the frames
+  - Video metadata (size, extension, path, date)
+- Tracks which videos have already been processed to avoid duplicates
+- Supports multiple AI models via OpenRouter
 
-## First time developing plugins?
+## Installation
 
-Quick starting guide for new plugin devs:
+1. Download the latest release and copy `main.js`, `manifest.json` and `styles.css` to your vault at `.obsidian/plugins/obsidian-video-catalogue/`
+2. Enable the plugin in **Settings → Community Plugins**
+3. On first activation, FFmpeg will be downloaded automatically in the background (requires internet connection, ~50 MB)
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+## Setup
 
-## Releasing new releases
+1. Go to **Settings → Obsidian Video Catalogue**
+2. Enter the **video folder path** (absolute path on your system, e.g. `C:/Videos` or `/home/user/Videos`)
+3. Enter the **note folder** inside your vault where notes will be created (e.g. `Videos/Notes`)
+4. Add your **OpenRouter API key** ([get one here](https://openrouter.ai/keys))
+5. Choose an **AI model** — Google Gemini 3 Flash is recommended for speed and quality
+6. Optionally adjust the **number of frames** to extract (1–10) and the **tag prefix**
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+## Usage
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+Once configured, click **Generate Notes** in the settings tab or run the command **Generate notes for all videos** from the command palette.
 
-## Adding your plugin to the community plugin list
+A progress window will show:
+- Total videos found
+- Already processed (skipped)
+- Videos being processed in real time
+- A live log with timestamps
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+You can cancel at any time.
 
-## How to use
+## Generated Note Format
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+Each note includes a YAML frontmatter block and structured content:
 
-## Manually installing the plugin
+```markdown
+---
+videoPath: C:/Videos/my-video.mp4
+category: Tutorial
+tags:
+  - OVC-tutorial
+  - OVC-programming
+generatedDate: 2026-03-21
+videoSize: 245.3 MB
+videoExtension: .mp4
+---
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+#OVC-tutorial #OVC-programming
 
-## Improve code quality with eslint
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
+# My Video Title
 
-## Funding URL
+## Description
+A tutorial covering...
 
-You can include funding URLs where people who use your plugin can financially support it.
+## Category
+Tutorial
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+## Important Events
+- **00:00**: Introduction
+- **02:30**: Main topic begins
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+## Metadata
+- **File**: my-video.mp4
+- **Size**: 245.3 MB
+- **Last Modified**: 21/3/2026
+- **Generated**: 21/3/2026, 11:00:00
 ```
 
-If you have multiple URLs, you can also do:
+## FFmpeg
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
+FFmpeg is downloaded automatically the first time the plugin loads. It is stored in the plugin directory and never requires manual installation. You can check for updates or reinstall it from the **Settings → FFmpeg** section.
 
-## API Documentation
+## Configuration Reference
 
-See https://docs.obsidian.md
+| Setting | Description | Default |
+|---------|-------------|---------|
+| Video folder path | Absolute path to the folder with your videos | — |
+| Note folder | Path inside the vault for generated notes | — |
+| OpenRouter API Key | Your OpenRouter key for AI access | — |
+| AI Model | Model used for video analysis | Google Gemini 3 Flash |
+| Frames to extract | How many frames per video are sent to the AI | 5 |
+| Tag prefix | Prefix added to all generated tags | `OVC-` |
+
+## Author
+
+Made by **Wondermochi**.

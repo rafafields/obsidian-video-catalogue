@@ -11,6 +11,7 @@ export interface VideoCategorizerSettings {
 	generatedNotes: Record<string, string>;
 	numberOfFrames: number;
 	ffmpegVersion: string;
+	tagPrefix: string;
 }
 
 export const DEFAULT_SETTINGS: VideoCategorizerSettings = {
@@ -20,7 +21,8 @@ export const DEFAULT_SETTINGS: VideoCategorizerSettings = {
 	selectedModel: AI_MODELS[0]?.id ?? '',
 	generatedNotes: {},
 	numberOfFrames: 5,
-	ffmpegVersion: ''
+	ffmpegVersion: '',
+	tagPrefix: 'OVC-'
 };
 
 export class VideoCategorizerSettingTab extends PluginSettingTab {
@@ -171,6 +173,17 @@ export class VideoCategorizerSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			});
+
+		new Setting(containerEl)
+			.setName('Tag prefix')
+			.setDesc('Prefix added to all generated tags (e.g. OVC- → #OVC-tutorial)')
+			.addText(text => text
+				.setPlaceholder('OVC-')
+				.setValue(this.plugin.settings.tagPrefix)
+				.onChange(async (value) => {
+					this.plugin.settings.tagPrefix = value;
+					await this.plugin.saveSettings();
+				}));
 
 		// ── Generate Notes ────────────────────────────────────────────────────
 		containerEl.createEl('h3', { text: 'Generate Notes' });

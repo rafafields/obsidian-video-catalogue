@@ -1,10 +1,10 @@
 {
-	"id": "video-categorizer",
-	"name": "Video Categorizer",
+	"id": "obsidian-video-catalogue",
+	"name": "Obsidian Video Catalogue",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Categorize videos using AI. Generate notes with categories, tags, and descriptions for your video files.",
-	"author": "Your Name",
+	"description": "Automatically scan a folder of videos, extract frames and send them to an AI model to generate categorized notes with tags, descriptions and events.",
+	"author": "Wondermochi",
 	"authorUrl": "",
 	"fundingUrl": "",
 	"isDesktopOnly": true
