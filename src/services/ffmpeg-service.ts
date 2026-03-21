@@ -11,6 +11,8 @@ export class FFmpegService {
 
 	isFFmpegAvailable(): boolean {
 		const { execSync } = require('child_process');
+		// If an explicit path is set, verify the file exists before trying to run it
+		if (this.ffmpegPath && !fs.existsSync(this.ffmpegPath)) return false;
 		try {
 			const cmd = this.ffmpegPath ? `"${this.ffmpegPath}" -version` : 'ffmpeg -version';
 			execSync(cmd, { stdio: 'ignore' });
@@ -63,9 +65,11 @@ export class FFmpegService {
 		const execPromise = util.promisify(exec);
 
 		try {
+			const isWindows = process.platform === 'win32';
+			const filter = isWindows ? 'find "Duration"' : 'grep Duration';
 			const cmd = this.ffmpegPath
-				? `"${this.ffmpegPath}" -i "${videoPath}" 2>&1 | find "Duration"`
-				: `ffmpeg -i "${videoPath}" 2>&1 | find "Duration"`;
+				? `"${this.ffmpegPath}" -i "${videoPath}" 2>&1 | ${filter}`
+				: `ffmpeg -i "${videoPath}" 2>&1 | ${filter}`;
 			
 			const { stdout } = await execPromise(cmd);
 			const match = stdout.match(/Duration: (\d+):(\d+):(\d+\.\d+)/);

@@ -14,26 +14,38 @@ export const SUPPORTED_VIDEO_EXTENSIONS = [
 
 export const AI_MODELS = [
 	{
-		id: 'google/gemini-2.0-flash-exp',
-		name: 'Google Gemini 2.0 Flash (Multimodal)',
+		id: 'google/gemini-3-flash-preview',
+		name: 'Google Gemini 3 Flash',
 		supportsImages: true,
 		recommended: true
 	},
 	{
-		id: 'openai/gpt-4o',
-		name: 'OpenAI GPT-4o',
+		id: 'google/gemini-3.1-flash-lite-preview',
+		name: 'Google Gemini 3.1 Flash Lite',
 		supportsImages: true,
 		recommended: false
 	},
 	{
-		id: 'anthropic/claude-sonnet-4-20250514',
-		name: 'Claude Sonnet 4',
+		id: 'openai/gpt-5.4-mini',
+		name: 'OpenAI GPT-5.4 Mini',
 		supportsImages: true,
 		recommended: false
 	},
 	{
-		id: 'meta-llama/llama-3.2-90b-vision-instruct',
-		name: 'Llama 3.2 90B Vision',
+		id: 'openai/gpt-5.4',
+		name: 'OpenAI GPT-5.4',
+		supportsImages: true,
+		recommended: false
+	},
+	{
+		id: 'anthropic/claude-sonnet-4.6',
+		name: 'Claude Sonnet 4.6',
+		supportsImages: true,
+		recommended: false
+	},
+	{
+		id: 'anthropic/claude-opus-4.6',
+		name: 'Claude Opus 4.6',
 		supportsImages: true,
 		recommended: false
 	}
@@ -93,6 +105,14 @@ export const INSTALLATION_INSTRUCTIONS = {
 		pacman: {
 			command: 'sudo pacman -S ffmpeg',
 			description: 'Arch Linux'
+		},
+		manual: {
+			steps: [
+				'Run: sudo apt install ffmpeg (Debian/Ubuntu)',
+				'Or: sudo dnf install ffmpeg (Fedora/RHEL)',
+				'Or: sudo pacman -S ffmpeg (Arch Linux)',
+				'Restart Obsidian'
+			]
 		}
 	}
 };

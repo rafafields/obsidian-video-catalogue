@@ -1,4 +1,4 @@
-import { App, Modal, Setting, Notice } from 'obsidian';
+import { App, Modal, Setting, Notice, ButtonComponent } from 'obsidian';
 import VideoCategorizerPlugin from '../main';
 import { VideoScanner } from '../services/video-scanner';
 import { FFmpegService } from '../services/ffmpeg-service';
@@ -10,7 +10,7 @@ export class GenerateModal extends Modal {
 	private progressBar: HTMLProgressElement | null = null;
 	private progressEl: HTMLElement | null = null;
 	private statusEl: HTMLElement | null = null;
-	private cancelButton: HTMLButtonElement | null = null;
+	private cancelButton: ButtonComponent | null = null;
 	private isCancelled = false;
 
 	constructor(app: App, plugin: VideoCategorizerPlugin) {
@@ -43,12 +43,12 @@ export class GenerateModal extends Modal {
 		videosFoundEl.createEl('div', { 
 			text: '0', 
 			cls: 'stat-value',
-			style: 'font-size: 24px; font-weight: bold;'
+			attr: { style: 'font-size: 24px; font-weight: bold;' }
 		});
 		videosFoundEl.createEl('div', { 
 			text: 'Videos Found', 
 			cls: 'stat-label',
-			style: 'font-size: 12px; opacity: 0.7;'
+			attr: { style: 'font-size: 12px; opacity: 0.7;' }
 		});
 
 		const alreadyProcessedEl = statsContainer.createEl('div');
@@ -59,12 +59,12 @@ export class GenerateModal extends Modal {
 		alreadyProcessedEl.createEl('div', { 
 			text: '0', 
 			cls: 'stat-value',
-			style: 'font-size: 24px; font-weight: bold;'
+			attr: { style: 'font-size: 24px; font-weight: bold;' }
 		});
 		alreadyProcessedEl.createEl('div', { 
 			text: 'Already Processed', 
 			cls: 'stat-label',
-			style: 'font-size: 12px; opacity: 0.7;'
+			attr: { style: 'font-size: 12px; opacity: 0.7;' }
 		});
 
 		const toProcessEl = statsContainer.createEl('div');
@@ -75,12 +75,12 @@ export class GenerateModal extends Modal {
 		toProcessEl.createEl('div', { 
 			text: '0', 
 			cls: 'stat-value',
-			style: 'font-size: 24px; font-weight: bold;'
+			attr: { style: 'font-size: 24px; font-weight: bold;' }
 		});
 		toProcessEl.createEl('div', { 
 			text: 'To Process', 
 			cls: 'stat-label',
-			style: 'font-size: 12px; opacity: 0.7;'
+			attr: { style: 'font-size: 12px; opacity: 0.7;' }
 		});
 
 		const progressContainer = container.createEl('div');
@@ -88,7 +88,7 @@ export class GenerateModal extends Modal {
 
 		this.progressEl = progressContainer.createEl('div', {
 			text: '0%',
-			style: 'text-align: center; margin-bottom: 10px; font-weight: bold;'
+			attr: { style: 'text-align: center; margin-bottom: 10px; font-weight: bold;' }
 		});
 
 		this.progressBar = progressContainer.createEl('progress') as HTMLProgressElement;
@@ -99,7 +99,7 @@ export class GenerateModal extends Modal {
 
 		this.statusEl = container.createEl('p', {
 			text: 'Initializing...',
-			style: 'margin-top: 20px; font-style: italic; color: var(--text-muted);'
+			attr: { style: 'margin-top: 20px; font-style: italic; color: var(--text-muted);' }
 		});
 
 		const logContainer = container.createEl('div');
@@ -202,17 +202,17 @@ export class GenerateModal extends Modal {
 				this.updateStatus(`Processing: ${video.name}${video.extension}`);
 				addLog(`Extracting frames from: ${video.name}`);
 
-				const tempDir = await this.extractFrames(video);
-				
-				if (!tempDir || tempDir.length === 0) {
+				const { frames, tempDir } = await this.extractFrames(video);
+
+				if (!frames || frames.length === 0) {
 					addLog(`Failed to extract frames from: ${video.name}`);
 					continue;
 				}
 
 				addLog(`Analyzing with AI: ${video.name}`);
-				
+
 				try {
-					const analysis = await aiCategorizer.analyzeVideo(tempDir, video.name);
+					const analysis = await aiCategorizer.analyzeVideo(frames, video.name);
 					
 					addLog(`Creating note: ${video.name}`);
 					await noteManager.createNote(video, analysis);
@@ -251,12 +251,16 @@ export class GenerateModal extends Modal {
 		}
 	}
 
-	private async extractFrames(video: any): Promise<string> {
-		const tempDir = await this.plugin.ffmpegService.extractFrames(
+	private async extractFrames(video: any): Promise<{ frames: string[], tempDir: string }> {
+		const path = require('path');
+		const os = require('os');
+		const tempDir = path.join(os.tmpdir(), 'video-categorizer', Date.now().toString());
+		const frames = await this.plugin.ffmpegService.extractFrames(
 			video.path,
-			this.plugin.settings.numberOfFrames
+			this.plugin.settings.numberOfFrames,
+			tempDir
 		);
-		return tempDir;
+		return { frames, tempDir };
 	}
 
 	private updateProgress(percent: number): void {

@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting, Notice } from "obsidian";
 import VideoCategorizerPlugin from "./main";
-import { AI_MODELS, getOS, INSTALLATION_INSTRUCTIONS } from "./constants";
+import { AI_MODELS } from "./constants";
+import { FFmpegDownloader } from "./services/ffmpeg-downloader";
 
 export interface VideoCategorizerSettings {
 	videoFolderPath: string;
@@ -8,20 +9,18 @@ export interface VideoCategorizerSettings {
 	openRouterApiKey: string;
 	selectedModel: string;
 	generatedNotes: Record<string, string>;
-	ffmpegPath: string;
 	numberOfFrames: number;
-	hasCompletedSetup: boolean;
+	ffmpegVersion: string;
 }
 
 export const DEFAULT_SETTINGS: VideoCategorizerSettings = {
 	videoFolderPath: '',
 	obsidianNoteFolder: '',
 	openRouterApiKey: '',
-	selectedModel: AI_MODELS[0].id,
+	selectedModel: AI_MODELS[0]?.id ?? '',
 	generatedNotes: {},
-	ffmpegPath: '',
 	numberOfFrames: 5,
-	hasCompletedSetup: false
+	ffmpegVersion: ''
 };
 
 export class VideoCategorizerSettingTab extends PluginSettingTab {
@@ -38,60 +37,91 @@ export class VideoCategorizerSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h2', { text: 'Video Categorizer Settings' });
 
-		const ffmpegStatus = this.plugin.ffmpegService.isFFmpegAvailable();
-		
-		new Setting(containerEl)
-			.setName('FFmpeg Status')
-			.setDesc(ffmpegStatus 
-				? `✅ FFmpeg detected: ${this.plugin.settings.ffmpegPath || 'in PATH'}`
-				: '❌ FFmpeg not detected. Please install FFmpeg to use this plugin.')
-			.addButton(button => {
-				button.setButtonText('Setup Wizard');
-				button.onClick(() => {
-					this.plugin.showSetupWizard();
-				});
-			});
+		// ── FFmpeg section ────────────────────────────────────────────────────
+		containerEl.createEl('h3', { text: 'FFmpeg' });
 
+		const ffmpegAvailable = this.plugin.ffmpegService.isFFmpegAvailable();
+		const installedVersion = this.plugin.settings.ffmpegVersion;
+		const statusText = ffmpegAvailable
+			? `✅ FFmpeg ${installedVersion || 'instalado'}`
+			: '⏳ FFmpeg no encontrado — se descargará al primer uso';
+
+		const ffmpegSetting = new Setting(containerEl)
+			.setName('Estado de FFmpeg')
+			.setDesc(statusText);
+
+		ffmpegSetting.addButton(button => {
+			button.setButtonText('Check for Updates');
+			button.onClick(async () => {
+				button.setButtonText('Consultando...');
+				button.setDisabled(true);
+				try {
+					const latest = await FFmpegDownloader.getLatestRelease();
+					if (latest.tag === installedVersion) {
+						new Notice(`✅ FFmpeg ${installedVersion} ya es la última versión`);
+					} else {
+						const msg = `Nueva versión disponible: ${latest.tag} (instalada: ${installedVersion || 'ninguna'})`;
+						new Notice(msg, 8000);
+						// Show download button dynamically
+						ffmpegSetting.addButton(dlBtn => {
+							dlBtn.setButtonText(`Descargar ${latest.tag}`);
+							dlBtn.setCta();
+							dlBtn.onClick(async () => {
+								await this.downloadFFmpeg(latest.tag);
+								this.display();
+							});
+						});
+					}
+				} catch (e) {
+					new Notice('❌ No se pudo consultar GitHub. Comprueba tu conexión.');
+				} finally {
+					button.setButtonText('Check for Updates');
+					button.setDisabled(false);
+				}
+			});
+		});
+
+		ffmpegSetting.addButton(button => {
+			button.setButtonText(ffmpegAvailable ? 'Reinstalar' : 'Descargar ahora');
+			if (!ffmpegAvailable) button.setCta();
+			button.onClick(async () => {
+				await this.downloadFFmpeg();
+				this.display();
+			});
+		});
+
+		// ── Video Sources ─────────────────────────────────────────────────────
 		containerEl.createEl('h3', { text: 'Video Sources' });
 
 		new Setting(containerEl)
 			.setName('Video folder path')
 			.setDesc('Absolute path to the folder containing your videos on your system')
-			.addText(text => text
-				.setPlaceholder('C:\\Videos or /home/user/Videos')
-				.setValue(this.plugin.settings.videoFolderPath)
-				.onChange(async (value) => {
-					this.plugin.settings.videoFolderPath = value;
-					await this.plugin.saveSettings();
-				}))
-			.addButton(button => {
-				button.setButtonText('Browse');
-				button.onClick(async () => {
-					const result = await this.showDirectoryPicker();
-					if (result) {
-						this.plugin.settings.videoFolderPath = result;
+			.addText(text => {
+				text
+					.setPlaceholder('C:\\Videos or /home/user/Videos')
+					.setValue(this.plugin.settings.videoFolderPath)
+					.onChange(async (value) => {
+						this.plugin.settings.videoFolderPath = value;
 						await this.plugin.saveSettings();
-						this.display();
-					}
-				});
+					});
+				text.inputEl.style.width = '100%';
 			});
 
 		new Setting(containerEl)
 			.setName('Obsidian note folder')
-			.setDesc('Folder in your vault where video notes will be created')
-			.addDropdown(dropdown => {
-				const folders = this.getVaultFolders();
-				folders.forEach(folder => {
-					dropdown.addOption(folder, folder);
-				});
-				dropdown
+			.setDesc('Path inside your vault where video notes will be created (e.g. Videos/Notes)')
+			.addText(text => {
+				text
+					.setPlaceholder('Videos/Notes')
 					.setValue(this.plugin.settings.obsidianNoteFolder)
 					.onChange(async (value) => {
 						this.plugin.settings.obsidianNoteFolder = value;
 						await this.plugin.saveSettings();
 					});
+				text.inputEl.style.width = '100%';
 			});
 
+		// ── AI Configuration ──────────────────────────────────────────────────
 		containerEl.createEl('h3', { text: 'AI Configuration' });
 
 		new Setting(containerEl)
@@ -142,6 +172,7 @@ export class VideoCategorizerSettingTab extends PluginSettingTab {
 					});
 			});
 
+		// ── Generate Notes ────────────────────────────────────────────────────
 		containerEl.createEl('h3', { text: 'Generate Notes' });
 
 		new Setting(containerEl)
@@ -151,9 +182,8 @@ export class VideoCategorizerSettingTab extends PluginSettingTab {
 				button.setButtonText('Generate Notes');
 				button.setCta();
 				button.onClick(async () => {
-					if (!ffmpegStatus) {
-						new Notice('Please install FFmpeg first');
-						this.plugin.showSetupWizard();
+					if (!this.plugin.ffmpegService.isFFmpegAvailable()) {
+						new Notice('FFmpeg no está listo todavía. Espera a que termine la descarga.');
 						return;
 					}
 					if (!this.plugin.settings.videoFolderPath) {
@@ -174,7 +204,7 @@ export class VideoCategorizerSettingTab extends PluginSettingTab {
 
 		if (Object.keys(this.plugin.settings.generatedNotes).length > 0) {
 			containerEl.createEl('h3', { text: 'Generated Notes' });
-			
+
 			const count = Object.keys(this.plugin.settings.generatedNotes).length;
 			new Setting(containerEl)
 				.setName('Total notes generated')
@@ -192,45 +222,27 @@ export class VideoCategorizerSettingTab extends PluginSettingTab {
 		}
 	}
 
-	private async showDirectoryPicker(): Promise<string | null> {
-		return new Promise((resolve) => {
-			const input = document.createElement('input');
-			input.type = 'file';
-			(input as any).webkitdirectory = true;
-			(input as any).directory = true;
-			
-			input.onchange = (e: any) => {
-				const files = e.target.files;
-				if (files && files.length > 0) {
-					const path = files[0].path;
-					const folderPath = path.substring(0, path.lastIndexOf('\\'));
-					resolve(folderPath);
-				} else {
-					resolve(null);
-				}
-			};
-			
-			input.click();
-		});
+	private async downloadFFmpeg(tag?: string): Promise<void> {
+		const notice = new Notice('Descargando FFmpeg...', 0);
+		try {
+			const release = tag
+				? { tag }
+				: await FFmpegDownloader.getLatestRelease();
+
+			await FFmpegDownloader.download(
+				this.plugin.pluginDir,
+				release.tag,
+				(pct) => notice.setMessage(`Descargando FFmpeg... ${pct}%`)
+			);
+
+			this.plugin.settings.ffmpegVersion = release.tag;
+			await this.plugin.saveSettings();
+			notice.setMessage('✅ FFmpeg instalado correctamente');
+			setTimeout(() => notice.hide(), 3000);
+		} catch (e: any) {
+			notice.setMessage(`❌ Error: ${e.message}`);
+			setTimeout(() => notice.hide(), 5000);
+		}
 	}
 
-	private getVaultFolders(): string[] {
-		const vault = this.app.vault;
-		const allFiles = vault.getAllLoadedFiles();
-		
-		const uniqueFolders = new Set<string>();
-		uniqueFolders.add('/');
-		
-		allFiles.forEach(file => {
-			if (file.parent) {
-				uniqueFolders.add(file.parent.path);
-			}
-		});
-
-		return Array.from(uniqueFolders).filter(f => f).sort();
-	}
-		});
-
-		return Array.from(uniqueFolders).filter(f => f).sort();
-	}
 }
